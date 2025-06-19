@@ -1,0 +1,7 @@
+name: AdvancementBarrierPaper
+version: '1.0'
+main: dev.chsr.advancementBarrierPaper.AdvancementBarrierPaper
+api-version: '1.21'
+commands:
+  nextTask:
+    description: skip current task
