@@ -15,9 +15,9 @@ class EventListener : Listener {
     fun onAdvancementDone(event: PlayerAdvancementDoneEvent) {
         if (event.advancement.display == null) return
         when (event.advancement.display!!.frame()) {
-            AdvancementDisplay.Frame.CHALLENGE -> expandBorder(100)
-            AdvancementDisplay.Frame.GOAL -> expandBorder(50)
-            AdvancementDisplay.Frame.TASK -> expandBorder(10)
+            AdvancementDisplay.Frame.CHALLENGE -> expandBorder(10)
+            AdvancementDisplay.Frame.GOAL -> expandBorder(5)
+            AdvancementDisplay.Frame.TASK -> expandBorder(2)
         }
     }
 

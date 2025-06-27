@@ -29,6 +29,7 @@ class AdvancementBarrierPaper : JavaPlugin() {
 
         server.pluginManager.registerEvents(EventListener(), this)
         getCommand("nextTask")?.setExecutor(NextTaskCMD())
+        getCommand("setTask")?.setExecutor(SetTaskCMD())
 
         TaskManager.nextTask()
     }
@@ -61,6 +62,7 @@ class AdvancementBarrierPaper : JavaPlugin() {
 }
 
 fun expandBorder(size: Int) {
+    TaskManager.showTask = false
     Bukkit.getWorlds().first().worldBorder.size += size
     val text = Component.text()
         .append(Component.text("Borders expanded", NamedTextColor.GREEN))
@@ -68,5 +70,9 @@ fun expandBorder(size: Int) {
         .append(Component.text("+$size", NamedTextColor.DARK_GREEN))
         .build()
 
-    Bukkit.broadcast(text)
+    Bukkit.getOnlinePlayers().forEach { it.sendActionBar(text) }
+    Bukkit.getScheduler().runTaskLater(AdvancementBarrierPaper.instance, Runnable {
+        TaskManager.showTask = true
+    }, 60L)
+
 }

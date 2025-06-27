@@ -10,10 +10,13 @@ object TaskManager {
     var currentTaskFactory: TaskFactory = Tasks.factoryList.random()
     var currentTask: Task = currentTaskFactory.create()
     var tickTimer = 60 * 15 * 20 // 15 minutes
+    var showTask = true
 
     init {
         Bukkit.getScheduler().runTaskTimer(AdvancementBarrierPaper.instance, Runnable {
             if (currentTask.isCompleted)
+                return@Runnable
+            if (!showTask)
                 return@Runnable
             if (tickTimer <= 0) {
                 nextTask()
@@ -37,15 +40,14 @@ object TaskManager {
         }, 0L, 5L)
     }
 
-    var index = 0
-
     fun nextTask() {
-        HandlerList.unregisterAll(currentTask)
+        setTask(Tasks.factoryList.random())
+    }
 
-//        currentTaskFactory = Tasks.factoryList.random()
-        currentTaskFactory = Tasks.factoryList[index]
+    fun setTask(taskFactory: TaskFactory) {
+        HandlerList.unregisterAll(currentTask)
+        currentTaskFactory = taskFactory
         currentTask = currentTaskFactory.create()
-        index = (index + 1) % Tasks.factoryList.size
         AdvancementBarrierPaper.instance.server.pluginManager.registerEvents(
             currentTask,
             AdvancementBarrierPaper.instance
@@ -61,6 +63,7 @@ object TaskManager {
         if (currentTask.isCompleted)
             return
 
+        HandlerList.unregisterAll(currentTask)
         currentTask.isCompleted = true
         currentTaskFactory.difficulty++
         expandBorder(currentTask.difficulty.borderExpandSize)

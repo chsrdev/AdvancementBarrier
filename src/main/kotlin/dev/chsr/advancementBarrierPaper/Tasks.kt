@@ -7,6 +7,7 @@ import org.bukkit.Material
 import org.bukkit.block.data.Ageable
 import org.bukkit.block.data.Levelled
 import org.bukkit.entity.Arrow
+import org.bukkit.entity.Bat
 import org.bukkit.entity.Cat
 import org.bukkit.entity.Creeper
 import org.bukkit.entity.EntityType
@@ -14,11 +15,13 @@ import org.bukkit.entity.Fish
 import org.bukkit.entity.Horse
 import org.bukkit.entity.Player
 import org.bukkit.entity.Sheep
+import org.bukkit.entity.Skeleton
 import org.bukkit.entity.Wolf
 import org.bukkit.event.EventHandler
 import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockCookEvent
+import org.bukkit.event.block.BlockDropItemEvent
 import org.bukkit.event.entity.CreatureSpawnEvent
 import org.bukkit.event.entity.EntityBreedEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
@@ -47,21 +50,25 @@ class TaskFactory(private val f: (Int) -> Task) {
 
 object Tasks {
     val factoryList = listOf(
+        // INSANE
+        TaskFactory { SkeletonKillBatWithBow() },
+
         // HARD
-        TaskFactory { KillCreeperByCreeper() },
         TaskFactory { TameParrot() },
 
         // NORMAL
+        TaskFactory { KillCreeperByCreeper() },
         TaskFactory { Harvest(80 + it * 10) },
         TaskFactory { FishWithBow(1 + it) },
-        TaskFactory { RideHorse() },
         TaskFactory { TameWolf() },
         TaskFactory { EatCake() },
+        TaskFactory { KillBatWithBow(1 + it) },
         TaskFactory { TameCat() },
         TaskFactory { CreateIronGolem(1 + it) },
         TaskFactory { CraftGoldenApple(1 + it) },
 
         // EASY
+        TaskFactory { RideHorse(60 + 10 * it) },
         TaskFactory { CollectLog(64 + it * 5) },
         TaskFactory { CatchFish(10 + it) },
         TaskFactory { CampfireCook(4 + it * 4) },
@@ -116,7 +123,7 @@ object Tasks {
         }
     }
 
-    class BreedAnimals(val goal: Int) : Task("Breed any two animals $goal times", TaskDifficulty.EASY, null) {
+    class BreedAnimals(val goal: Int) : Task("Breed any two animals $goal times", TaskDifficulty.EASY, 0) {
         @EventHandler(ignoreCancelled = true)
         fun onEntityBreed(event: EntityBreedEvent) {
             if (event.breeder is Player) {
@@ -144,7 +151,7 @@ object Tasks {
         }
     }
 
-    class KillCreeperByCreeper : Task("Kill creeper by explosion of another creeper", TaskDifficulty.HARD, null) {
+    class KillCreeperByCreeper : Task("Kill creeper by explosion of another creeper", TaskDifficulty.NORMAL, null) {
         @EventHandler
         fun onEntityDamageByEntity(event: EntityDamageByEntityEvent) {
             if (event.cause != EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) return
@@ -177,7 +184,7 @@ object Tasks {
         }
     }
 
-    class RideHorse : Task("Ride a horse for 1 minute", TaskDifficulty.NORMAL, 0) {
+    class RideHorse(val goal: Int) : Task("Ride a horse for $goal seconds", TaskDifficulty.NORMAL, 0) {
         private val ridingPlayers = mutableMapOf<Player, Int>()
         private var bukkitTask: BukkitTask? = null
 
@@ -190,8 +197,10 @@ object Tasks {
                     if (player.isInsideVehicle && player.vehicle is Horse) {
                         ridingPlayers[player] = ridingPlayers[player]!! + 1
                         progress = progress!! + 1
-                        if (progress!! >= 60)
+                        if (progress!! >= goal) {
                             TaskManager.completeTask()
+                            bukkitTask?.cancel()
+                        }
                     } else {
                         ridingPlayers.remove(player)
                         if (ridingPlayers.isEmpty())
@@ -227,16 +236,40 @@ object Tasks {
         }
     }
 
+    class KillBatWithBow(val goal: Int) : Task("Kill $goal bats with a bow", TaskDifficulty.NORMAL, 0) {
+        @EventHandler(ignoreCancelled = true)
+        fun onEntityDamageByEntity(event: EntityDamageByEntityEvent) {
+            if (event.cause == EntityDamageEvent.DamageCause.PROJECTILE
+                && event.damager is Arrow
+                && event.entity is Bat
+            ) {
+                progress = progress!! + 1
+                if (progress!! >= goal)
+                    TaskManager.completeTask()
+            }
+        }
+    }
+
+    class SkeletonKillBatWithBow() : Task("Make a skeleton hit a bat", TaskDifficulty.INSANE, null) {
+        @EventHandler(ignoreCancelled = true)
+        fun onEntityDamageByEntity(event: EntityDamageByEntityEvent) {
+            if (event.cause == EntityDamageEvent.DamageCause.PROJECTILE
+                && event.damager is Arrow
+                && event.entity is Bat
+                && (event.damager as Arrow).shooter is Skeleton
+            ) {
+                TaskManager.completeTask()
+            }
+        }
+    }
+
     class MineGravelForFlint(val goal: Int) : Task("Get $goal flint from gravel", TaskDifficulty.EASY, 0) {
         @EventHandler(ignoreCancelled = true)
-        fun onBlockBreak(event: BlockBreakEvent) {
-            if (event.block.type == Material.GRAVEL) {
-                val drops = event.block.getDrops(event.player.inventory.itemInMainHand)
-                if (drops.any { it.type == Material.FLINT }) {
-                    progress = progress!! + 1
-                    if (progress!! >= goal)
-                        TaskManager.completeTask()
-                }
+        fun onBlockBreak(event: BlockDropItemEvent) {
+            if (event.items.any { it.itemStack.type == Material.FLINT }) {
+                progress = progress!! + 1
+                if (progress!! >= goal)
+                    TaskManager.completeTask()
             }
         }
     }
@@ -311,7 +344,7 @@ object Tasks {
         }
     }
 
-    class CreateIronGolem(val goal: Int) : Task("Summon an $goal iron golems", TaskDifficulty.NORMAL, 0) {
+    class CreateIronGolem(val goal: Int) : Task("Summon $goal iron golems", TaskDifficulty.NORMAL, 0) {
         @EventHandler
         fun onEntitySpawn(event: CreatureSpawnEvent) {
             if (event.entityType == EntityType.IRON_GOLEM && event.spawnReason == CreatureSpawnEvent.SpawnReason.BUILD_IRONGOLEM) {
